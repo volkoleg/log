@@ -3,7 +3,7 @@ class Log {
 
 	const cookie_domain = ''; // PUT DOMAIN "domain.com"
 
-	const log_dir = ''; //PATH TO LOGS FOLDER "/val/log/"
+	const log_dir = ''; //PATH TO LOGS FOLDER "/var/log/"
 
 	const colors = [
 		'e_notice' => 'yellow',
