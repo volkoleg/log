@@ -16,4 +16,4 @@ just one php-file on pure php5.6, js, css.
 - counting of error records
 - parsing for dates, errors messages, error types, error sources
 
-
+<img src="https://raw.githubusercontent.com/volkoleg/log/6552c21b65ba4e61adb13df08689d374017bf950/screenshot.png">
