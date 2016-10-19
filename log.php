@@ -1,9 +1,13 @@
 <?php
+error_reporting(0); // :facepalm:
+
 class Log {
 
 	const cookie_domain = ''; // PUT DOMAIN "domain.com"
 
 	const log_dir = ''; //PATH TO LOGS FOLDER "/var/log/"
+
+	public $types_pattern = ""; // "/mysite-(.+)-[0-9]{4}-[0-9]{2}-[0-9]{2}.log/i"
 
 	const colors = [
 		'e_notice' => 'yellow',
@@ -53,8 +57,8 @@ class Log {
 
 	public $is_frame = false;
 
-	const types = [
-		'default' => [
+	public $types = [
+		'default.error' => [
 			'name' => 'PHP',
 			'color' => '#ffc849'
 		],
@@ -65,7 +69,6 @@ class Log {
 		'mysql' => [
 			'name' => 'MySQL',
 			'color' => '#00c2ff'
-
 		]
 	];
 	const filters = [
@@ -92,29 +95,25 @@ class Log {
 
 	public function checkPurge() {
 		if(!empty($_GET['purge_less_tpl'])) {
-			$__purge_less_tpl = ``;
+//			$__purge_less_tpl = ``;
 		}
 	}
 
 	public function checkFilters() {
-		if(!empty($_GET)) {
+		foreach(self::filters as $v) {
+			$this->$v = empty($_COOKIE['_' . $v]) ? '' : urldecode($_COOKIE['_' . $v]);
 
-			foreach(self::filters as $v) {
-				$this->$v = !empty($_GET[$v]) ? $_GET[$v] : '';
-				if(isset($_GET[$v])) {
-					setcookie('_' . $v, urlencode($this->$v), time() + (86400 * 30), '/', self::cookie_domain);
-				}
+			if(isset($_GET[$v])) {
+				$value = $_GET[$v];
+				setcookie('_' . $v, urlencode($value), time() + (86400 * 30), '/', self::cookie_domain);
+				$this->$v = $value;
 			}
-
-		} else {
-			foreach(self::filters as $v) {
-				$this->$v = empty($_COOKIE['_' . $v]) ? '' : urldecode($_COOKIE['_' . $v]);
-			}
-		};
+		}
 
 		if(empty($this->current_date) && !empty($this->dates[0])) {
 			$this->current_date = $this->dates[0];
 		}
+
 	}
 
 	public function display() {
@@ -153,7 +152,7 @@ class Log {
 
 		echo '<select id="log-type" name="current_type">';
 		echo "<option value='all'>ALL</option>";
-		foreach(self::types as $k => $v) {
+		foreach($this->types as $k => $v) {
 			$current = !empty($this->current_type) && $this->current_type == $k ? 'selected' : '';
 			echo "<option value='{$k}' {$current}>{$v['name']}</option>";
 		}
@@ -179,7 +178,7 @@ class Log {
 
 	public function getLogFileType($file) {
 		$type = '';
-		foreach(self::types as $k => $v) {
+		foreach($this->types as $k => $v) {
 			if(strpos($file, $k) !== false) {
 				$type = $k;
 				break;
@@ -299,12 +298,23 @@ class Log {
 		}
 	}
 
-	public function loadAllLogFilesNames() {
+	public function updateTypesList($file) {
+		$matches = [];
+		preg_match($this->types_pattern, $file, $matches);
+		if(!empty($matches[1]) && empty($this->types[$matches[1]])) {
+			$this->types[$matches[1]] = [
+				'name' => '+' . ucfirst($matches[1]),
+				'color' => '#ff0000'
+			];
+		}
+	}
 
+	public function loadAllLogFilesNames() {
 		if ($handle = opendir(self::log_dir)) {
 			while (false !== ($file = readdir($handle))) {
 				if ($file != "." && $file != "..") {
 					$this->files[] = $file;
+					$this->updateTypesList($file);
 				}
 			}
 			closedir($handle);
@@ -332,9 +342,9 @@ class Log {
 					<tr>
 						<th width='35'>Which</th>
 						<th width='65'>When</th>
-						<th width='65'>Who</th>
-						<th>What</th>
-						<th>Where</th>
+						<th>Who</th>
+						<th width='50%'>What</th>
+						<th width='50%'>Where</th>
 					</tr>
 				</thead>
 			<tbody>";
@@ -369,7 +379,7 @@ class Log {
 			echo '</td>';
 			echo '<td>';
 				$sign = $v->__sign;
-				echo '<i style="color: ' . self::types[$sign]['color'] . ';">' . self::types[$sign]['name'] . '</i>';
+				echo '<i class="no-wrap" style="color: ' . $this->types[$sign]['color'] . ';">' . $this->types[$sign]['name'] . '</i>';
 			echo '</td>';
 			echo '<td class="nobr">';
 				echo $this->parseErrorTypes($v);
@@ -628,7 +638,6 @@ $html = ob_get_clean();
 			border-top: 0.2em solid #70d5ff;
 		}
 		table {
-			table-layout: fixed;
 			width: 100%;
 			border: 0;
 			border-collapse: collapse;
@@ -713,7 +722,6 @@ $html = ob_get_clean();
 		}
 		tr {
 			border: 0;
-			/* border-bottom: 1px solid <?=$app::colors['tr_border_bottom_color']?>;*/
 		}
 		tr.list:hover {
 			cursor: pointer;
@@ -736,6 +744,9 @@ $html = ob_get_clean();
 		.nobr {
 			word-break: break-word;
 			word-wrap: break-word;
+		}
+		.no-wrap {
+			white-space: nowrap;
 		}
 		ul {
 			margin: 0 0 0 50px;
@@ -780,7 +791,7 @@ $html = ob_get_clean();
 <body onload="init()">
 <?php
 	if(!$app->is_frame) {
-		echo "<nav>{$html}</nav><section><iframe id='iframe-log' name='iframe-log' src='?frame=1&date={$app->current_date}'></section>";
+		echo "<nav>{$html}</nav><section><iframe id='iframe-log' name='iframe-log' src='?frame=1&current_date={$app->current_date}'></section>";
 
 	} else {
 		echo $html;
