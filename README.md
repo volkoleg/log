@@ -1,6 +1,6 @@
 DevBox logs parser
 
-beta
+beta 2016-10-19
 
 just internal tool for own use, without any external frameworks and libs. 
 just one php-file on pure php5.6, js, css.
