@@ -3,7 +3,7 @@ DevBox logs parser
 beta 3 (2016-10-22)
 
 just internal tool for own use, without any external frameworks and libs. 
-just one php-file on pure php5.6, js, css.
+just one php-file 19Kb on pure php5.6, js, css.
 
 - listing of all errors from logs folder *.log
 - saving last visit date and highlight new error lines
