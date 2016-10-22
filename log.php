@@ -7,16 +7,7 @@ class Log {
 
 	const log_dir = ''; //PATH TO LOGS FOLDER "/var/log/"
 
-	public $types_pattern = ""; // "/mysite-(.+)-[0-9]{4}-[0-9]{2}-[0-9]{2}.log/i"
-
-	const colors = [
-		'e_notice' => 'yellow',
-		'e_dep' => 'lightgoldenrodyellow',
-		'e_parse' => 'red',
-		'e_warn' => 'orange',
-		'e_str' => 'pink',
-		'fatal' => 'red'
-	];
+	public $types_pattern = "/prefix-(.+)-[0-9]{4}-[0-9]{2}-[0-9]{2}.log/i";
 
 	const errors_names = [
 		"E_NOTICE",
@@ -95,7 +86,7 @@ class Log {
 
 	public function checkPurge() {
 		if(!empty($_GET['purge_less_tpl'])) {
-//			$__purge_less_tpl = ``;
+			$__purge_less_tpl = ``;
 		}
 	}
 
@@ -144,7 +135,7 @@ class Log {
 			<div class="dropdown-content">
 				<label><input '.($this->cb_dep ? 'checked':'').' id="cb_dep" onchange="setIgnore(\'cb_dep\')" type="checkbox" />Ignore E_DEPRECATED</label>
 				<label><input '.($this->cb_notice ? 'checked':'').' id="cb_notice" onchange="setIgnore(\'cb_notice\')" type="checkbox" />Ignore E_NOTICE</label>
-				<label><input type="submit" value="Reload"></label>
+				<label><input type="submit" value="Save And Reload"></label>
 			</div>
 		</div>';
 
@@ -169,7 +160,7 @@ class Log {
 		echo "
 		<input title='Use | for separate text' onfocus='this.value=this.value;' id='include-input' type='text' name='include' value='{$this->include}' placeholder='Include...'>
 		<input title='Use | for separate text' id='exclude-input' type='text' name='exclude' value='{$this->exclude}' placeholder='Exclude...'>
-		<input id='submit-ok-button' type='submit' value='OK'>
+		<input id='submit-ok-button' type='submit' value='RELOAD'>
 		<input type='submit' name='purge_less_tpl' id='purge-button' value='Purge LESS+TPL' />
 		</form>";
 
@@ -391,7 +382,8 @@ class Log {
 			echo '</tr>';
 //			echo "<div id='line-{$index}' style='display: none;'>".$this->buildTree($v)."</div";
 			echo "<tr id='line-{$index}' class='{$tr_style}' style='display: none;'>
-				<td colspan='5'>
+				<td colspan='5' class='parsed-code'>
+					<div onclick='toggleLine(\"line-{$index}\")' class='close-parse-code'>CLOSE</div>
 					".$this->buildTree($v)."
 				</td>
 			</tr>";
@@ -441,20 +433,12 @@ class Log {
 		return $r;
 	}
 	function buildTree($obj) {
-		return '<pre>' . print_r($obj, true) . '</pre>';
+		return $this->highlight_syntax(print_r($obj, true));
+//		return '<pre>' . $this->highlight_syntax(print_r($obj, true), true) . '</pre>';
 	}
 	function parseSource($v) {
 		$log_file_type = $v->__sign;
 		switch($log_file_type) {
-			case 'javascript':
-				$a = '@fields';
-				$b = 'ctxt_data';
-				$c1 = 'url';
-				$c2 = 'row';
-				$c3 = 'col';
-				$r = $this->highlightFile($v->$a->$b->$c1) . ' (row: <b class="file_with_err_line_num_color">' . $v->$a->$b->$c2 .'</b>, col: <b class="file_with_err_line_num_color">' . $v->$a->$b->$c3 . '</b>)';
-				break;
-
 			case 'mysql':
 				$f = '@source_path';
 				$r = '';
@@ -463,8 +447,7 @@ class Log {
 				}
 				break;
 
-			case 'default':
-			default:
+			case 'default.error':
 				$f = '@fields';
 				$c = 'ctxt_file';
 				$l = 'ctxt_line';
@@ -477,9 +460,47 @@ class Log {
 				}
 //				$r = $this->highlightFile($v->$f->$c) . ' (line: <b class="file_with_err_line_num_color">' . $v->$f->$l . '</b>)';
 				break;
+
+			case 'javascript':
+				$a = '@fields';
+				$b = 'ctxt_data';
+				$c1 = 'url';
+				$c2 = 'row';
+				$c3 = 'col';
+				$r = $this->highlightFile($v->$a->$b->$c1) . ' (row: <b class="file_with_err_line_num_color">' . $v->$a->$b->$c2 .'</b>, col: <b class="file_with_err_line_num_color">' . $v->$a->$b->$c3 . '</b>)';
+				break;
+
+			default:
+				$a = '@fields';
+				$b = 'url';
+				$r = $this->highlightFile($v->$a->$b);
+				break;
 		};
 
 		return $r;
+	}
+
+	function highlight_syntax($s) {
+		$p = [
+			"/(\[\@message\])|(\[row\])|(\[url\])|(\[col\])|(\[customer_id\])|(\[institute_id\])/",
+			"/stdClass Object/",
+			"/(.+) => ([0-9]+)([\n\r])/",
+			"/([\n\r])/",
+			"(\s\[)",
+			"/(\s\s)/",
+			"(\])",
+		];
+
+		$r = [
+			'<b style="color: red">$0</b>',
+			'<span style="color: #a8d2ff;">stdClass Object</span>',
+			"$1 => <span style='color: yellow'>$2</span>$3",
+			"<br>",
+			"<span style='color: #738fff'>[",
+			"&nbsp;&nbsp;",
+			"]</span>",
+		];
+		return preg_replace($p, $r, $s);
 	}
 
 	function highlightFile($s) {
@@ -564,22 +585,47 @@ $html = ob_get_clean();
 			color: lime;
 		}
 		.e_notice {
-			color: <?=$app::colors['e_notice']?>;
+			color: yellow;
 		}
 		.e_dep {
-			color: <?=$app::colors['e_dep']?>;
+			color: lightgoldenrodyellow;
 		}
 		.fatal {
-			color: <?=$app::colors['fatal']?>;
+			color: red;
 		}
 		.e_parse {
-			color: <?=$app::colors['e_parse']?>;
+			color: red;
 		}
 		.e_warn {
-			color: <?=$app::colors['e_warn']?>;
+			color: orange;
 		}
 		.e_str {
-			color: <?=$app::colors['e_str']?>;
+			color: pink;
+		}
+		div.close-parse-code {
+			display: block;
+			position: absolute;
+			right: 10px;
+			top: 10px;
+			cursor: pointer;
+
+			border-radius: 4px;
+			border: 0;
+			font-size: 14px;
+			padding: 4px 10px;
+			background-color: #ff0000;
+			color: white;
+
+		}
+		div.close-parse-code:hover {
+			background-color: #d10000;
+		}
+		td.parsed-code {
+			position: relative;
+			background-color: #342d2d;
+			border-top: 2px solid red;
+			border-bottom: 2px solid red;
+			padding: 5px;
 		}
 		.dropdown {
 			position: relative;
@@ -590,7 +636,7 @@ $html = ob_get_clean();
 		.dropdown-content {
 			display: none;
 			position: absolute;
-			background-color: #70d5ff;
+			background-color: #23beff;
 			min-width: 190px;
 			padding: 10px;
 			z-index: 1;
@@ -617,7 +663,7 @@ $html = ob_get_clean();
 			border-top: 0.2em solid #ffffff;
 		}
 		.dropdown:hover {
-			background-color: #70d5ff;
+			background-color: #23beff;
 		}
 		.hamburger {
 			position: relative;
@@ -626,8 +672,8 @@ $html = ob_get_clean();
 			vertical-align: middle;
 			height: 10px;
 			margin: 5px 5px 10px 5px;
-			border-top: 0.2em solid #70d5ff;
-			border-bottom: 0.2em solid #70d5ff;
+			border-top: 0.2em solid #23beff;
+			border-bottom: 0.2em solid #23beff;
 		}
 		.hamburger:before {
 			content: "";
@@ -635,9 +681,10 @@ $html = ob_get_clean();
 			top: 0.3em;
 			left: 0;
 			width: 100%;
-			border-top: 0.2em solid #70d5ff;
+			border-top: 0.2em solid #23beff;
 		}
 		table {
+			/*table-layout: fixed;*/
 			width: 100%;
 			border: 0;
 			border-collapse: collapse;
