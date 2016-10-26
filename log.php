@@ -199,7 +199,6 @@ class Log {
 						continue;
 					} else {
 						if((!empty($this->include) && $this->searching($this->include, $json)) || empty($this->include)) {
-							$this->log[] = $json;
 							$json->$type_field = $type;
 							$log_data[$json->$key_field] = $json;
 						}
